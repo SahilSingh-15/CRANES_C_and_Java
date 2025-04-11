@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Voice Assistant</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            width: 450px;
+            backdrop-filter: blur(12px);
+            color: white;
+        }
+        .mic {
+            font-size: 80px;
+            color: #ff4757;
+            cursor: pointer;
+            animation: pulse 1.5s infinite;
+            transition: transform 0.3s ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .mic:hover {
+            color: #ff6b81;
+            transform: scale(1.3);
+        }
+        #output {
+            font-size: 22px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Virtual Voice Assistant</h1>
+        <div class="mic" onclick="startListening()">🎤</div>
+        <p id="output">Click the mic and speak...</p>
+    </div>
+    <script>
+        function startListening() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'en-US';
+            recognition.start();
+            
+            recognition.onresult = function(event) {
+                const voiceText = event.results[0][0].transcript.toLowerCase();
+                document.getElementById('output').innerText = `You said: "${voiceText}"`;
+                respond(voiceText);
+            };
+            
+            recognition.onerror = function() {
+                document.getElementById('output').innerText = 'Error: Try again';
+            };
+        }
+    
+        function respond(text) {
+            const speech = new SpeechSynthesisUtterance();
+            
+            const action = getActionFromVoiceCommand(text);
+            
+            // Check if the voice command includes an action from system control (e.g., show desktop, lock screen, etc.)
+            if (action) {
+                fetch(`http://localhost:8000/${action}`, { method: 'GET' })
+                    .then(response => response.text())
+                    .then(result => {
+                        // Provide feedback for system control commands
+                        document.getElementById('output').innerText = result;  // Display the server result (or success message)
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        document.getElementById('output').innerText = "Error connecting to server.";  // Display server error
+                    });
+                // Speak the action taken (system control feedback)
+                speech.text = `Executing system command: ${action}`;
+                window.speechSynthesis.speak(speech);
+                return;  // Do not proceed to fallback "I didn't understand that" message
+            }
+            
+            // Now handle non-system-related voice commands
+            if (text.includes('hello') || text.includes('hi')) {
+                speech.text = 'Hello! I am  toffy ,how can I assist you today?';
+            } else if (text.includes('time')) {
+                speech.text = `The time is ${new Date().toLocaleTimeString()}`;
+            } else if (text.includes('date')) {
+                speech.text = `Today's date is ${new Date().toLocaleDateString()}`;
+            } else if (text.includes('open google')) {
+                speech.text = 'Opening Google';
+                window.open('https://www.google.com', '_blank');
+            } else if (text.includes('open youtube')) {
+                speech.text = 'Opening YouTube';
+                window.open('https://www.youtube.com', '_blank');
+            } else if (text.includes('open linkedin')) {
+                speech.text = 'Opening LinkedIn';
+                window.open('https://www.linkedin.com', '_blank');
+            } else if (text.includes('open email')) {
+                speech.text = 'Opening Email';
+                window.open('https://mail.google.com', '_blank');
+            } else if (text.includes('open spotify')) {
+                speech.text = 'Opening Spotify';
+                window.open('https://open.spotify.com', '_blank');
+            } else if (text.includes('open instagram')) {
+                speech.text = 'Opening Instagram';
+                window.open('https://www.instagram.com', '_blank');
+            } else if (text.includes('open facebook')) {
+                speech.text = 'Opening Facebook';
+                window.open('https://www.facebook.com', '_blank');
+            } else if (text.includes('open settings')) {
+                speech.text = 'Opening Settings';
+                window.open('ms-settings:', '_blank');
+            } else if (text.includes('search for')) {
+                let query = text.replace('search for', '').trim();
+                speech.text = `Searching for ${query}`;
+                window.open(`https://www.google.com/search?q=${query}`, '_blank');
+            } else if (text.includes('calculate')) {
+                try {
+                    let expression = text.replace('calculate', '').trim();
+                    let result = eval(expression);
+                    speech.text = `The result is ${result}`;
+                } catch {
+                    speech.text = "I couldn't calculate that. Please try again.";
+                }
+            } else {
+                speech.text = "I didn't understand that. Can you please repeat?";
+            }
+            
+            // Speak the response (either command or fallback)
+            window.speechSynthesis.speak(speech);
+        }
+    
+        function getActionFromVoiceCommand(command) {
+            // Check for specific system control commands
+            if (command.includes('show desktop')) return 'showDesktop';
+            if (command.includes('open start menu')) return 'openStartMenu';
+            if (command.includes('lock screen')) return 'lockScreen';
+            if (command.includes('open file explorer')) return 'openFileExplorer';
+            if (command.includes('open run dialog')) return 'openRunDialog';
+            if (command.includes('open task manager')) return 'openTaskManager';
+            if (command.includes('take screenshot')) return 'takeScreenshot';
+            if (command.includes('shutdown')) return 'shutdown';
+            if (command.includes('restart')) return 'restart';
+            if (command.includes('open notepad')) return 'openNotepad';
+            if (command.includes('open calculator')) return 'openCalculator';
+            return '';  // Return empty string if no action is found
+        }
+    </script>
+    
+    
+</body>
+</html>
